@@ -30,12 +30,18 @@ class AMauriSkateCharacter : public ACharacter
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
+
+	virtual void Tick(float DeltaSeconds) override;
 	
 protected:
 
 	/** Jump Input Action */
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* JumpAction;
+
+	/** Jump Input Action */
+	UPROPERTY(EditAnywhere, Category="Input")
+	UInputAction* ImpulseAction;
 
 	/** Move Input Action */
 	UPROPERTY(EditAnywhere, Category="Input")
@@ -64,6 +70,9 @@ protected:
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
 
+	/** Called for impulse input */
+	void Impulse(const FInputActionValue& Value);
+
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
 
@@ -84,6 +93,20 @@ public:
 	/** Handles jump pressed inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpEnd();
+
+public:
+	// Attributes and functions meant to animation blueprints
+
+	UPROPERTY(EditAnywhere, Category = "Skate")
+	float SkateImpulseDuration = 2.0;
+
+	float SkateImpulseRemainingTime = 0.0;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Skate")
+	bool IsImpulsingNow() const;
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Skate")
+	bool IsJumpingNow() const;
 
 public:
 

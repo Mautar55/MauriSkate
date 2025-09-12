@@ -12,6 +12,12 @@
 #include "InputActionValue.h"
 #include "MauriSkate.h"
 
+void AMauriSkateCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	SkateImpulseRemainingTime = FMath::Clamp(SkateImpulseRemainingTime-DeltaSeconds,0.0,FLT_MAX);
+}
+
 AMauriSkateCharacter::AMauriSkateCharacter()
 {
 	// Set size for collision capsule
@@ -59,6 +65,9 @@ void AMauriSkateCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 
+		// Turning
+		EnhancedInputComponent->BindAction(ImpulseAction, ETriggerEvent::Completed, this, &AMauriSkateCharacter::Impulse);
+		
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AMauriSkateCharacter::Move);
 		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AMauriSkateCharacter::Look);
@@ -77,8 +86,19 @@ void AMauriSkateCharacter::Move(const FInputActionValue& Value)
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
+	
 	// route the input
 	DoMove(MovementVector.X, MovementVector.Y);
+}
+
+void AMauriSkateCharacter::Impulse(const FInputActionValue& Value)
+{
+	bool ActionValue = Value.Get<bool>();
+	
+	if (SkateImpulseRemainingTime <= 0.0)
+	{
+		SkateImpulseRemainingTime = SkateImpulseDuration;
+	}
 }
 
 void AMauriSkateCharacter::Look(const FInputActionValue& Value)
@@ -130,4 +150,14 @@ void AMauriSkateCharacter::DoJumpEnd()
 {
 	// signal the character to stop jumping
 	StopJumping();
+}
+
+bool AMauriSkateCharacter::IsImpulsingNow() const
+{
+	return (SkateImpulseRemainingTime > 0.0);
+}
+
+bool AMauriSkateCharacter::IsJumpingNow() const
+{
+	return not this->GetCharacterMovement()->IsMovingOnGround();
 }
