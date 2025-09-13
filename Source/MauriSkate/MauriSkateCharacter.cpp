@@ -16,7 +16,7 @@
 void AMauriSkateCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	
+
 	SkatePushRemainingTime = FMath::Clamp(SkatePushRemainingTime-DeltaSeconds,0.0,FLT_MAX);
 
 	IsJumping = IsJumpingNow();
@@ -29,6 +29,10 @@ void AMauriSkateCharacter::Tick(float DeltaSeconds)
 	{
 		DoPush(1.0);
 		PushingInstantReached = true;
+	} else if (IsJumping)
+	{
+		// cancels pushng if starts to be in the air
+		SkatePushRemainingTime = 0.0;
 	}
 
 	if (SkatePushRemainingTime <= 0)
@@ -36,6 +40,14 @@ void AMauriSkateCharacter::Tick(float DeltaSeconds)
 		PushingInstantReached = false;
 		IsPushing = false;
 	}
+
+	// Updating the velocity Direction
+	const FVector OldHorizontalVelocity = GetCharacterMovement()->Velocity * FVector(1.0,1.0,0.0);
+	const FVector OldVerticalVelocity = GetCharacterMovement()->Velocity * FVector(0.0,0.0,1.0);
+	const float OldHorizontalSpeed = OldHorizontalVelocity.Length();
+	const float NewHorizontalSpeed = FMath::Clamp(OldHorizontalSpeed,0.0f,MaxSkateHorizontalVelocity);
+	const FVector NewVelocity = (OldHorizontalVelocity.GetSafeNormal(0.001) * NewHorizontalSpeed) + OldVerticalVelocity;
+	GetCharacterMovement()->Velocity = NewVelocity;
 	
 }
 
@@ -62,6 +74,7 @@ AMauriSkateCharacter::AMauriSkateCharacter()
 	GetCharacterMovement()->BrakingDecelerationWalking = 50.0f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 0.0f;
 	GetCharacterMovement()->GroundFriction = 0.0f;
+	GetCharacterMovement()->bOrientRotationToMovement = false;
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -147,9 +160,6 @@ void AMauriSkateCharacter::DoTurn(float Right, float Forward)
 		const FVector TargetRightDirection = FRotationMatrix(ControllerYawRotation).GetUnitAxis(EAxis::Y);
 		const FVector TargetFinalDirection = (TargetForwardDirection*Forward + TargetRightDirection*Right).GetSafeNormal(0.001);
 		const FRotator TargetRotator = TargetFinalDirection.Rotation();
-		
-		const float DirectionsDotProduct = FVector::DotProduct(InitialForwardDirection, TargetFinalDirection);
-		const float DirectionsRelativeDistance = (DirectionsDotProduct+1.0)/2.0;
 
 		// RInterpConstantTo uses Degrees
 		// RInterpTo uses a relative measure
@@ -174,7 +184,7 @@ void AMauriSkateCharacter::DoPush(float Factor)
 	if (GetController() != nullptr)
 	{
 		// find out which way is forward
-		const FRotator Rotation = GetController()->GetControlRotation();
+		const FRotator Rotation = GetActorRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
 
 		// get forward vector
