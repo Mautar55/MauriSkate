@@ -97,8 +97,8 @@ void AMauriSkateCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
 		
 		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AMauriSkateCharacter::DoJumpStart);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AMauriSkateCharacter::StopJumping);
 
 		// Turning
 		EnhancedInputComponent->BindAction(PushAction, ETriggerEvent::Completed, this, &AMauriSkateCharacter::Push);
@@ -215,13 +215,14 @@ void AMauriSkateCharacter::DoLook(float Yaw, float Pitch)
 
 void AMauriSkateCharacter::DoJumpStart()
 {
-	// signal the character to jump
-	Jump();
+	if (!IsPushingNow())
+	{
+		Jump();
+	}
 }
 
 void AMauriSkateCharacter::DoJumpEnd()
 {
-	// signal the character to stop jumping
 	StopJumping();
 }
 

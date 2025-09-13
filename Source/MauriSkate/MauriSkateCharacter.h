@@ -72,7 +72,6 @@ protected:
 	void Look(const FInputActionValue& Value);
 
 public:
-
 	/** Handles turning/rotation inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoTurn(float Right, float Forward);
@@ -84,7 +83,7 @@ public:
 	/** Handles look inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoLook(float Yaw, float Pitch);
-
+	
 	/** Handles jump pressed inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpStart();
