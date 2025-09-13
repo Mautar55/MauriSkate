@@ -34,24 +34,19 @@ class AMauriSkateCharacter : public ACharacter
 	virtual void Tick(float DeltaSeconds) override;
 	
 protected:
-
-	/** Jump Input Action */
+	
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* JumpAction;
-
-	/** Jump Input Action */
+	
 	UPROPERTY(EditAnywhere, Category="Input")
-	UInputAction* ImpulseAction;
+	UInputAction* PushAction;
 
-	/** Move Input Action */
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* MoveAction;
 
-	/** Look Input Action */
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* LookAction;
 
-	/** Mouse Look Input Action */
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* MouseLookAction;
 
@@ -67,20 +62,24 @@ protected:
 
 protected:
 
-	/** Called for movement input */
-	void Move(const FInputActionValue& Value);
+	/** Called for turning the skate input */
+	void Turn(const FInputActionValue& Value);
 
 	/** Called for impulse input */
-	void Impulse(const FInputActionValue& Value);
+	void Push(const FInputActionValue& Value);
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
 
 public:
 
-	/** Handles move inputs from either controls or UI interfaces */
+	/** Handles turning/rotation inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
-	virtual void DoMove(float Right, float Forward);
+	virtual void DoTurn(float Right, float Forward);
+
+	/** Handles turning/rotation inputs from either controls or UI interfaces */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void DoPush(float Factor);
 
 	/** Handles look inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
@@ -94,19 +93,37 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpEnd();
 
-public:
-	// Attributes and functions meant to animation blueprints
+public: // Editable skate animation parameters
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkatePushAnimationDuration = 2.0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkatePushAnimationInstantNormalized = 0.5769;
 
-	UPROPERTY(EditAnywhere, Category = "Skate")
-	float SkateImpulseDuration = 2.0;
+	// Read only are exposed for the animation BP
+	UPROPERTY(BlueprintReadOnly, Category = "Skate")
+	bool IsPushing = false;
+	UPROPERTY(BlueprintReadOnly, Category = "Skate")
+	bool IsJumping = false;
 
-	float SkateImpulseRemainingTime = 0.0;
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Skate")
-	bool IsImpulsingNow() const;
+	// Editable Skate character parameters
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkatePushForce = 50000;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateRelativeTurningSpeed = 0.25;
 	
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Skate")
+	bool IsPushingNow() const;
 	bool IsJumpingNow() const;
+
+private: // Inner Working skate state variables
+	float SkatePushRemainingTime = 0.0;
+	bool PushingInstantReached = false;
+
+	float PendingSolvingSkateForce = 0.0;
+	
+	void AddSkateImpulse(float ImpulseIntensity)
+	{
+		PendingSolvingSkateForce += ImpulseIntensity;
+	}
 
 public:
 

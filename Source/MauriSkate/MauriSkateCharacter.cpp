@@ -11,11 +11,32 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "MauriSkate.h"
+#include "Kismet/GameplayStatics.h"
 
 void AMauriSkateCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	SkateImpulseRemainingTime = FMath::Clamp(SkateImpulseRemainingTime-DeltaSeconds,0.0,FLT_MAX);
+	
+	SkatePushRemainingTime = FMath::Clamp(SkatePushRemainingTime-DeltaSeconds,0.0,FLT_MAX);
+
+	IsJumping = IsJumpingNow();
+	IsPushing = IsPushingNow();
+	
+	if (IsPushing &&
+		!PushingInstantReached &&
+		(SkatePushRemainingTime <= (1-SkatePushAnimationInstantNormalized)*SkatePushAnimationDuration)
+		)
+	{
+		DoPush(1.0);
+		PushingInstantReached = true;
+	}
+
+	if (SkatePushRemainingTime <= 0)
+	{
+		PushingInstantReached = false;
+		IsPushing = false;
+	}
+	
 }
 
 AMauriSkateCharacter::AMauriSkateCharacter()
@@ -30,16 +51,17 @@ AMauriSkateCharacter::AMauriSkateCharacter()
 
 	// Configure character movement
 	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
+	GetCharacterMovement()->RotationRate = FRotator(0.0f, 150.0f, 0.0f);
 
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
 	// instead of recompiling to adjust them
 	GetCharacterMovement()->JumpZVelocity = 500.f;
-	GetCharacterMovement()->AirControl = 0.35f;
-	GetCharacterMovement()->MaxWalkSpeed = 500.f;
+	GetCharacterMovement()->AirControl = 0.0f;
+	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
-	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
-	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
+	GetCharacterMovement()->BrakingDecelerationWalking = 50.0f;
+	GetCharacterMovement()->BrakingDecelerationFalling = 0.0f;
+	GetCharacterMovement()->GroundFriction = 0.0f;
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -66,10 +88,10 @@ void AMauriSkateCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 
 		// Turning
-		EnhancedInputComponent->BindAction(ImpulseAction, ETriggerEvent::Completed, this, &AMauriSkateCharacter::Impulse);
+		EnhancedInputComponent->BindAction(PushAction, ETriggerEvent::Completed, this, &AMauriSkateCharacter::Push);
 		
 		// Moving
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AMauriSkateCharacter::Move);
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AMauriSkateCharacter::Turn);
 		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AMauriSkateCharacter::Look);
 
 		// Looking
@@ -81,23 +103,23 @@ void AMauriSkateCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	}
 }
 
-void AMauriSkateCharacter::Move(const FInputActionValue& Value)
+void AMauriSkateCharacter::Turn(const FInputActionValue& Value)
 {
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
 	
 	// route the input
-	DoMove(MovementVector.X, MovementVector.Y);
+	DoTurn(MovementVector.X, MovementVector.Y);
 }
 
-void AMauriSkateCharacter::Impulse(const FInputActionValue& Value)
+void AMauriSkateCharacter::Push(const FInputActionValue& Value)
 {
 	bool ActionValue = Value.Get<bool>();
 	
-	if (SkateImpulseRemainingTime <= 0.0)
+	if (SkatePushRemainingTime <= 0.0 && !IsJumpingNow())
 	{
-		SkateImpulseRemainingTime = SkateImpulseDuration;
+		SkatePushRemainingTime = SkatePushAnimationDuration;
 	}
 }
 
@@ -110,8 +132,45 @@ void AMauriSkateCharacter::Look(const FInputActionValue& Value)
 	DoLook(LookAxisVector.X, LookAxisVector.Y);
 }
 
-void AMauriSkateCharacter::DoMove(float Right, float Forward)
+void AMauriSkateCharacter::DoTurn(float Right, float Forward)
 {
+	if (GetController() != nullptr && !IsJumpingNow())
+	{
+
+		const FRotator InitialRotation = GetCharacterMovement()->UpdatedComponent->GetComponentRotation();
+		const FRotator InitialYawRotation(0,InitialRotation.Yaw,0);
+		const FVector InitialForwardDirection = FRotationMatrix(InitialYawRotation).GetUnitAxis(EAxis::X);
+		
+		const FRotator ControllerRotation = GetController()->GetControlRotation();
+		const FRotator ControllerYawRotation(0, ControllerRotation.Yaw, 0);
+		const FVector TargetForwardDirection = FRotationMatrix(ControllerYawRotation).GetUnitAxis(EAxis::X);
+		const FVector TargetRightDirection = FRotationMatrix(ControllerYawRotation).GetUnitAxis(EAxis::Y);
+		const FVector TargetFinalDirection = (TargetForwardDirection*Forward + TargetRightDirection*Right).GetSafeNormal(0.001);
+		const FRotator TargetRotator = TargetFinalDirection.Rotation();
+		
+		const float DirectionsDotProduct = FVector::DotProduct(InitialForwardDirection, TargetFinalDirection);
+		const float DirectionsRelativeDistance = (DirectionsDotProduct+1.0)/2.0;
+
+		// RInterpConstantTo uses Degrees
+		// RInterpTo uses a relative measure
+		const FRotator NewRotation = FMath::RInterpConstantTo(InitialYawRotation,TargetRotator,UGameplayStatics::GetWorldDeltaSeconds(this),SkateRelativeTurningSpeed*360);
+
+		// Rotating the pawn
+		GetCharacterMovement()->MoveUpdatedComponent(FVector::ZeroVector,NewRotation,false);
+		
+		// Updating the velocity Direction
+		const FVector OldHorizontalVelocity = GetCharacterMovement()->Velocity * FVector(1.0,1.0,0.0);
+		const FVector OldVerticalVelocity = GetCharacterMovement()->Velocity * FVector(0.0,0.0,1.0);
+		const float OldHorizontalSpeed = OldHorizontalVelocity.Length();
+		const FVector NewVelocity = FRotationMatrix(NewRotation).GetUnitAxis(EAxis::X)*OldHorizontalSpeed + OldVerticalVelocity;
+		GetCharacterMovement()->Velocity = NewVelocity;
+		
+	}
+}
+
+void AMauriSkateCharacter::DoPush(float Factor)
+{
+	GEngine->AddOnScreenDebugMessage(-1,15.0f,FColor::Magenta, TEXT("Added Push"));
 	if (GetController() != nullptr)
 	{
 		// find out which way is forward
@@ -124,11 +183,15 @@ void AMauriSkateCharacter::DoMove(float Right, float Forward)
 		// get right vector 
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-		// add movement 
-		AddMovementInput(ForwardDirection, Forward);
-		AddMovementInput(RightDirection, Right);
+		// add movement
+
+		GetCharacterMovement()->AddImpulse(ForwardDirection*SkatePushForce*Factor);
+		//AddMovementInput(ForwardDirection, Forward);
+		//AddMovementInput(RightDirection, Right);
+		
 	}
 }
+
 
 void AMauriSkateCharacter::DoLook(float Yaw, float Pitch)
 {
@@ -152,9 +215,9 @@ void AMauriSkateCharacter::DoJumpEnd()
 	StopJumping();
 }
 
-bool AMauriSkateCharacter::IsImpulsingNow() const
+bool AMauriSkateCharacter::IsPushingNow() const
 {
-	return (SkateImpulseRemainingTime > 0.0);
+	return (SkatePushRemainingTime > 0.0);
 }
 
 bool AMauriSkateCharacter::IsJumpingNow() const
