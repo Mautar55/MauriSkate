@@ -133,6 +133,8 @@ public: // Editable skate animation parameters
 	bool IsPushingNow() const;
 	bool IsJumpingNow() const;
 
+	void KillCharacter();
+
 private: // Inner Working skate state variables
 	float SkatePushRemainingTime = 0.0;
 	bool bPushingInstantReached = false;

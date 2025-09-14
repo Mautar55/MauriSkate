@@ -322,3 +322,11 @@ void AMauriSkateCharacter::SetSkateAlternativeMaterial(const bool SetAlternative
 	
 }
 
+void AMauriSkateCharacter::KillCharacter()
+{
+	GetMesh()->SetCollisionProfileName("Ragdoll");
+	GetMesh()->SetAllBodiesSimulatePhysics(true);
+	SkateMesh->SetSimulatePhysics(true);
+	GetMovementComponent()->Velocity = FVector::Zero();
+}
+
