@@ -11,6 +11,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "MauriSkate.h"
+#include "Chaos/Utilities.h"
 #include "Kismet/GameplayStatics.h"
 
 void AMauriSkateCharacter::Tick(float DeltaSeconds)
@@ -41,13 +42,35 @@ void AMauriSkateCharacter::Tick(float DeltaSeconds)
 		IsPushing = false;
 	}
 
-	// Updating the velocity Direction
-	const FVector OldHorizontalVelocity = GetCharacterMovement()->Velocity * FVector(1.0,1.0,0.0);
-	const FVector OldVerticalVelocity = GetCharacterMovement()->Velocity * FVector(0.0,0.0,1.0);
-	const float OldHorizontalSpeed = OldHorizontalVelocity.Length();
-	const float NewHorizontalSpeed = FMath::Clamp(OldHorizontalSpeed,0.0f,MaxSkateHorizontalVelocity);
-	const FVector NewVelocity = (OldHorizontalVelocity.GetSafeNormal(0.001) * NewHorizontalSpeed) + OldVerticalVelocity;
-	GetCharacterMovement()->Velocity = NewVelocity;
+	if (GetCharacterMovement()->IsMovingOnGround())
+	{
+		const FFindFloorResult Floor = GetCharacterMovement()->CurrentFloor;
+		const FVector FloorNormal = Floor.HitResult.ImpactNormal;
+		const FVector FloorPoint = Floor.HitResult.ImpactPoint;
+
+		if (FloorNormal.Dot(FVector::UpVector) < 0.98)
+		{
+			
+			const FVector Ramp = (FloorNormal * FVector(1.0,1.0,0.00)).GetSafeNormal(0.001);
+			const FVector DownsideFacing =
+				(Ramp.Dot(GetActorForwardVector()) > Ramp.Dot(GetActorForwardVector()*(-1.0))) ?
+			GetActorForwardVector() : GetActorForwardVector()*(-1.0);
+
+			const FVector Inclination = FVector::VectorPlaneProject(DownsideFacing, FloorNormal).GetSafeNormal(0.001);
+			const FVector FinalForce =
+				Inclination * (Inclination.Dot(FVector::DownVector) * GetWorld()->GetGravityZ() * -1.0 * GetCharacterMovement()->Mass * SkateGravityFactor);
+
+			GetCharacterMovement()->AddForce(FinalForce);
+
+			/*GEngine->AddOnScreenDebugMessage(-1, 0.25f, FColor::Blue,
+				FString::Printf(TEXT("Ramp:%s ; Downside:%s ; Inclination:%s ; Final:%s"),
+					*(Ramp.ToString()),
+					*(DownsideFacing.ToString()),
+					*(Inclination.ToString()),
+					*(FinalForce.ToString())
+					));*/
+		}
+	}
 	
 }
 
@@ -71,9 +94,9 @@ AMauriSkateCharacter::AMauriSkateCharacter()
 	GetCharacterMovement()->AirControl = 0.0f;
 	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
-	GetCharacterMovement()->BrakingDecelerationWalking = 50.0f;
+	GetCharacterMovement()->BrakingDecelerationWalking = 0.0f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 0.0f;
-	GetCharacterMovement()->GroundFriction = 0.0f;
+	GetCharacterMovement()->GroundFriction = 0.088f;
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
@@ -120,7 +143,6 @@ void AMauriSkateCharacter::Turn(const FInputActionValue& Value)
 {
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
-
 	
 	// route the input
 	DoTurn(MovementVector.X, MovementVector.Y);

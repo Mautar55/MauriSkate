@@ -111,6 +111,8 @@ public: // Editable skate animation parameters
 	float MaxSkateHorizontalVelocity = 1000.0;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
 	float SkateRelativeTurningSpeed = 1.0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateGravityFactor = 1.0;
 	
 	bool IsPushingNow() const;
 	bool IsJumpingNow() const;
