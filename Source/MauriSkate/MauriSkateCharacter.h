@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Components/StaticMeshComponent.h"
 #include "Logging/LogMacros.h"
 #include "MauriSkateCharacter.generated.h"
 
 class USpringArmComponent;
 class UCameraComponent;
+class UStaticMeshComponent;
 class UInputAction;
 struct FInputActionValue;
 
@@ -30,6 +32,9 @@ class AMauriSkateCharacter : public ACharacter
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	UStaticMeshComponent* SkateMesh;
 
 	virtual void Tick(float DeltaSeconds) override;
 	
@@ -101,9 +106,9 @@ public: // Editable skate animation parameters
 
 	// Read only are exposed for the animation BP
 	UPROPERTY(BlueprintReadOnly, Category = "Skate")
-	bool IsPushing = false;
+	bool bIsPushing = false;
 	UPROPERTY(BlueprintReadOnly, Category = "Skate")
-	bool IsJumping = false;
+	bool bIsJumping = false;
 
 	// Editable Skate character parameters
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
@@ -118,21 +123,28 @@ public: // Editable skate animation parameters
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
 	float SkateFloorFriction = 0.08;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
-	float SkateSlowDownFriction = 30.0;
+	float SkateSlowDownFriction = 4.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	UMaterialInterface *SkateReadyMaterial;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	UMaterialInterface *SkateExecutingMaterial;
 	
 	bool IsPushingNow() const;
 	bool IsJumpingNow() const;
 
 private: // Inner Working skate state variables
 	float SkatePushRemainingTime = 0.0;
-	bool PushingInstantReached = false;
+	bool bPushingInstantReached = false;
 
 	float PendingSolvingSkateForce = 0.0;
+
+	bool bIsSlowingDown = false;
 	
-	void AddSkateImpulse(float ImpulseIntensity)
-	{
-		PendingSolvingSkateForce += ImpulseIntensity;
-	}
+	void AddSkateImpulse(float ImpulseIntensity);
+
+	void SetSkateAlternativeMaterial(const bool SetAlternative);
+
 
 public:
 

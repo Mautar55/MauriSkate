@@ -20,17 +20,17 @@ void AMauriSkateCharacter::Tick(float DeltaSeconds)
 
 	SkatePushRemainingTime = FMath::Clamp(SkatePushRemainingTime-DeltaSeconds,0.0,FLT_MAX);
 
-	IsJumping = IsJumpingNow();
-	IsPushing = IsPushingNow();
+	bIsJumping = IsJumpingNow();
+	bIsPushing = IsPushingNow();
 	
-	if (IsPushing &&
-		!PushingInstantReached &&
+	if (bIsPushing &&
+		!bPushingInstantReached &&
 		(SkatePushRemainingTime <= (1-SkatePushAnimationInstantNormalized)*SkatePushAnimationDuration)
 		)
 	{
 		DoPush(1.0);
-		PushingInstantReached = true;
-	} else if (IsJumping)
+		bPushingInstantReached = true;
+	} else if (bIsJumping)
 	{
 		// cancels pushng if starts to be in the air
 		SkatePushRemainingTime = 0.0;
@@ -38,8 +38,8 @@ void AMauriSkateCharacter::Tick(float DeltaSeconds)
 
 	if (SkatePushRemainingTime <= 0)
 	{
-		PushingInstantReached = false;
-		IsPushing = false;
+		bPushingInstantReached = false;
+		bIsPushing = false;
 	}
 
 	if (GetCharacterMovement()->IsMovingOnGround())
@@ -70,6 +70,14 @@ void AMauriSkateCharacter::Tick(float DeltaSeconds)
 					*(FinalForce.ToString())
 					));*/
 		}
+	}
+
+	if (bIsPushing || bIsJumping || bIsSlowingDown)
+	{
+		SetSkateAlternativeMaterial(true);
+	} else
+	{
+		SetSkateAlternativeMaterial(false);
 	}
 	
 }
@@ -109,6 +117,10 @@ AMauriSkateCharacter::AMauriSkateCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	//Skate mesh basic config. Position is set in Blueprint for flexibility
+	SkateMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SkateMesh"));
+	SkateMesh->SetupAttachment(GetCapsuleComponent());
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
@@ -250,10 +262,13 @@ void AMauriSkateCharacter::DoSlowDown(const bool Pressed)
 	{
 		GEngine->AddOnScreenDebugMessage(-1,15.0f,FColor::Magenta, TEXT("Slow down started"));
 		GetCharacterMovement()->GroundFriction = SkateSlowDownFriction;
+		bIsSlowingDown = true;
+		
 	} else
 	{
 		GEngine->AddOnScreenDebugMessage(-1,15.0f,FColor::Magenta, TEXT("SlowDown ended"));
 		GetCharacterMovement()->GroundFriction = SkateFloorFriction;
+		bIsSlowingDown = false;
 	}
 }
 
@@ -289,3 +304,21 @@ bool AMauriSkateCharacter::IsJumpingNow() const
 {
 	return not this->GetCharacterMovement()->IsMovingOnGround();
 }
+
+void AMauriSkateCharacter::AddSkateImpulse(float ImpulseIntensity)
+{
+	PendingSolvingSkateForce += ImpulseIntensity;
+}
+
+void AMauriSkateCharacter::SetSkateAlternativeMaterial(const bool SetAlternative)
+{
+	if (SetAlternative)
+	{
+		SkateMesh->SetMaterial(0,SkateExecutingMaterial);
+	} else
+	{
+		SkateMesh->SetMaterial(0,SkateReadyMaterial);
+	}
+	
+}
+
