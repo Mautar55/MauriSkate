@@ -18,7 +18,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
  *  A simple player-controllable third person character
  *  Implements a controllable orbiting camera
  */
-UCLASS(abstract)
+UCLASS(abstract, meta = (PrioritizeCategories ="Skate"))
 class AMauriSkateCharacter : public ACharacter
 {
 	GENERATED_BODY()
@@ -42,7 +42,10 @@ protected:
 	UInputAction* PushAction;
 
 	UPROPERTY(EditAnywhere, Category="Input")
-	UInputAction* MoveAction;
+	UInputAction* SlowDownAction;
+
+	UPROPERTY(EditAnywhere, Category="Input")
+	UInputAction* TurnAction;
 
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* LookAction;
@@ -60,35 +63,33 @@ protected:
 	/** Initialize input action bindings */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-protected:
+protected: // Bound to input actions
 
-	/** Called for turning the skate input */
 	void Turn(const FInputActionValue& Value);
 
-	/** Called for impulse input */
 	void Push(const FInputActionValue& Value);
 
-	/** Called for looking input */
+	void SlowDownStarted(const FInputActionValue& Value);
+	void SlowDownStopped(const FInputActionValue& Value);
+
 	void Look(const FInputActionValue& Value);
 
-public:
-	/** Handles turning/rotation inputs from either controls or UI interfaces */
+public: // Inputs from either controls or UI interfaces
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoTurn(float Right, float Forward);
-
-	/** Handles turning/rotation inputs from either controls or UI interfaces */
+	
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoPush(float Factor);
 
-	/** Handles look inputs from either controls or UI interfaces */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void DoSlowDown(bool Pressed);
+	
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoLook(float Yaw, float Pitch);
 	
-	/** Handles jump pressed inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpStart();
 
-	/** Handles jump pressed inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpEnd();
 
@@ -113,6 +114,11 @@ public: // Editable skate animation parameters
 	float SkateRelativeTurningSpeed = 1.0;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
 	float SkateGravityFactor = 1.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateFloorFriction = 0.08;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateSlowDownFriction = 30.0;
 	
 	bool IsPushingNow() const;
 	bool IsJumpingNow() const;

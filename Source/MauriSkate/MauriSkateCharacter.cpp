@@ -96,7 +96,7 @@ AMauriSkateCharacter::AMauriSkateCharacter()
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 0.0f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 0.0f;
-	GetCharacterMovement()->GroundFriction = 0.088f;
+	GetCharacterMovement()->GroundFriction = SkateFloorFriction;
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
@@ -123,14 +123,17 @@ void AMauriSkateCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AMauriSkateCharacter::DoJumpStart);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AMauriSkateCharacter::StopJumping);
 
-		// Turning
+		// Pushing
 		EnhancedInputComponent->BindAction(PushAction, ETriggerEvent::Completed, this, &AMauriSkateCharacter::Push);
 		
-		// Moving
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AMauriSkateCharacter::Turn);
-		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AMauriSkateCharacter::Look);
+		EnhancedInputComponent->BindAction(SlowDownAction, ETriggerEvent::Started, this, &AMauriSkateCharacter::SlowDownStarted);
+		EnhancedInputComponent->BindAction(SlowDownAction, ETriggerEvent::Completed, this, &AMauriSkateCharacter::SlowDownStopped);
+		
+		// Turning
+		EnhancedInputComponent->BindAction(TurnAction, ETriggerEvent::Triggered, this, &AMauriSkateCharacter::Turn);
 
-		// Looking
+		// look
+		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AMauriSkateCharacter::Look);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AMauriSkateCharacter::Look);
 	}
 	else
@@ -156,6 +159,23 @@ void AMauriSkateCharacter::Push(const FInputActionValue& Value)
 	{
 		SkatePushRemainingTime = SkatePushAnimationDuration;
 	}
+}
+
+void AMauriSkateCharacter::SlowDownStarted(const FInputActionValue& Value)
+{
+	const bool ActionValue = Value.Get<bool>();
+	
+	if (!IsPushingNow() && !IsJumpingNow())
+	{
+		DoSlowDown(true);
+	}
+}
+
+void AMauriSkateCharacter::SlowDownStopped(const FInputActionValue& Value)
+{
+	const bool ActionValue = Value.Get<bool>();
+	
+	DoSlowDown(false);
 }
 
 void AMauriSkateCharacter::Look(const FInputActionValue& Value)
@@ -224,6 +244,18 @@ void AMauriSkateCharacter::DoPush(float Factor)
 	}
 }
 
+void AMauriSkateCharacter::DoSlowDown(const bool Pressed)
+{
+	if (Pressed)
+	{
+		GEngine->AddOnScreenDebugMessage(-1,15.0f,FColor::Magenta, TEXT("Slow down started"));
+		GetCharacterMovement()->GroundFriction = SkateSlowDownFriction;
+	} else
+	{
+		GEngine->AddOnScreenDebugMessage(-1,15.0f,FColor::Magenta, TEXT("SlowDown ended"));
+		GetCharacterMovement()->GroundFriction = SkateFloorFriction;
+	}
+}
 
 void AMauriSkateCharacter::DoLook(float Yaw, float Pitch)
 {
