@@ -36,6 +36,6 @@ void UGamePointsComponent::AwardPoints(int NewPoints)
 {
 	PointsAccumulated += NewPoints;
 	GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Yellow, FString::Printf(TEXT("Just Awarded %i points. Total %i"), NewPoints, PointsAccumulated));
-	OnPointsAwarded.ExecuteIfBound(PointsAccumulated);
+	OnPointsAwarded.Broadcast(PointsAccumulated);
 }
 

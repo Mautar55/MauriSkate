@@ -6,7 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "GamePointsComponent.generated.h"
 
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnPointsAwarded, int, PointsAmount);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPointsAwarded, int, PointsAmount);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class MAURISKATE_API UGamePointsComponent : public UActorComponent
@@ -16,7 +16,7 @@ class MAURISKATE_API UGamePointsComponent : public UActorComponent
 public:	
 	// Sets default values for this component's properties
 	UGamePointsComponent();
-
+	UPROPERTY(BlueprintAssignable, BlueprintCallable)
 	FOnPointsAwarded OnPointsAwarded;
 
 protected:

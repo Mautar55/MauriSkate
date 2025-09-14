@@ -330,3 +330,5 @@ void AMauriSkateCharacter::KillCharacter()
 	GetMovementComponent()->Velocity = FVector::Zero();
 }
 
+
+
